@@ -58,12 +58,14 @@ def handle_client_request(resource, client_socket):
         uri = resource
 
     if uri in REDIRECTION_DICTIONARY.keys():
-        response = f"HTTP/1.1 {REDIRECTION_DICTIONARY[uri]}\r\n\r\n"
+        response = (f"HTTP/1.1 {REDIRECTION_DICTIONARY[uri]}\r\nContent-Length: {len(REDIRECTION_DICTIONARY[uri])}"
+                    f"\r\n\r\n")
         client_socket.sendall(response.encode())
         return
 
     elif uri == '/moved':
-        response = f"HTTP/1.1 302 MOVED TEMPORARILY\r\nLocation: {DEFAULT_URL}\r\n\r\n"
+        msg = '302 MOVED TEMPORARILY'
+        response = f"HTTP/1.1 {msg}\r\nLocation: {DEFAULT_URL}\r\nContent-Length: {len(msg)}\r\n\r\n"
         client_socket.sendall(response.encode())
         return
 
