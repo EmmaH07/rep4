@@ -1,6 +1,7 @@
 """
- Author: Barak Gonen and Nir Dweck
- EDITOR Emma Harel
+Author: Barak Gonen and Nir Dweck
+EDITOR: Emma Harel
+DATE 9.1.24
 Description: HTTP server
 """
 import os
