@@ -17,6 +17,11 @@ MAX_PACKET = 1024
 WEB_ROOT = 'webroot'
 DEFAULT_URL = '\index.html'
 REDIRECTION_DICTIONARY = {"/forbidden": "403 FORBIDDEN", "/error": "500 INTERNAL SERVER ERROR"}
+CONTENT_TYPES = {
+    '.html': 'text/html;charset=utf-8', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+    '.js': "text/javascript; charset=UTF-8", '.css': 'text/css', '.txt': 'text/plain', '.ico': 'image/x-icon',
+    '.gif': 'image/jpeg'
+}
 
 logging.basicConfig(filename='HTTP_server.log', level=logging.DEBUG)
 
@@ -61,12 +66,14 @@ def handle_client_request(resource, client_socket):
         response = (f"HTTP/1.1 {REDIRECTION_DICTIONARY[uri]}\r\nContent-Length: {len(REDIRECTION_DICTIONARY[uri])}"
                     f"\r\n\r\n")
         client_socket.sendall(response.encode())
+        client_socket.close()
         return
 
     elif uri == '/moved':
         msg = '302 MOVED TEMPORARILY'
         response = f"HTTP/1.1 {msg}\r\nLocation: {DEFAULT_URL}\r\nContent-Length: {len(msg)}\r\n\r\n"
         client_socket.sendall(response.encode())
+        client_socket.close()
         return
 
     data = get_file_data(uri)
@@ -77,11 +84,13 @@ def handle_client_request(resource, client_socket):
             response = (f"HTTP/1.1 404 NOT FOUND\r\nContent-Type: image/png\r\nContent-Length: {len(data)}\r\n"
                         f"Not Found\r\n\r\n")
             client_socket.sendall(response.encode() + data)
+            client_socket.close()
         else:
             msg = 'NOT FOUND'
             response = (f"HTTP/1.1 {msg}\r\nContent-Type: text/plain\r\nContent-Length: {len(msg)}\r\n\r\n"
                         f"Not Found\r\n\r\n")
             client_socket.sendall(response.encode())
+            client_socket.close()
         return
 
     filename, file_extension = os.path.splitext(uri)
@@ -107,6 +116,7 @@ def handle_client_request(resource, client_socket):
 
     response = f"HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {len(data)}\r\n\r\n"
     client_socket.sendall(response.encode() + data)
+    client_socket.close()
 
 
 def validate_http_request(request):
@@ -134,27 +144,35 @@ def handle_client(client_socket):
     :return: None
     """
     logging.debug('Client connected')
-    while True:
-        try:
+    try:
+        while True:
             client_request = client_socket.recv(MAX_PACKET).decode()
-        except socket.error as err:
-            logging.error('received socket exception - ' + str(err))
-            break
-        except KeyboardInterrupt:
-            logging.error('received KeyboardInterrupt')
-            break
+            while not client_request.endswith("\r\n\r\n"):
+                client_request += client_socket.recv(MAX_PACKET).decode()
 
-        valid_http, resource = validate_http_request(client_request)
+                if client_request == '':
+                    break
+            valid_http, resource = validate_http_request(client_request)
 
-        if valid_http:
-            logging.debug('Got a valid HTTP request')
-            handle_client_request(resource, client_socket)
-        else:
-            logging.error('Error: Not a valid HTTP request')
-            response = f"HTTP/1.1 400 BAD REQUEST\r\n\r\n"
-            client_socket.sendall(response.encode())
-            logging.debug('Closing connection')
-            break
+            if valid_http:
+                logging.debug('Got a valid HTTP request')
+                handle_client_request(resource, client_socket)
+
+            else:
+                logging.error('Error: Not a valid HTTP request')
+                response = f"HTTP/1.1 400 BAD REQUEST\r\n\r\n"
+                client_socket.sendall(response.encode())
+                logging.debug('Closing connection')
+                break
+
+        if client_request == '':
+            client_socket.close()
+
+    except KeyboardInterrupt:
+        logging.error('received KeyboardInterrupt')
+
+    except socket.error as err:
+        logging.error('received socket exception - ' + str(err))
 
 
 # Main function
